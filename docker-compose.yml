@@ -1,0 +1,110 @@
+# Messagerie souveraine de l'administration
+# Lancement : docker compose up -d
+#
+# Les secrets ci-dessous sont des valeurs de DÉMONSTRATION.
+# En production, les définir dans un fichier .env (voir .env.example).
+# La clé de signature et le secret d'enregistrement de Synapse sont générés
+# au premier démarrage et ne figurent pas dans le dépôt.
+
+name: messagerie
+
+x-secrets:
+  - &mdp_postgres ${POSTGRES_PASSWORD:-postgres-demo}
+  - &mdp_bdd_synapse ${SYNAPSE_DB_PASSWORD:-synapse-demo}
+  - &mdp_bdd_keycloak ${KEYCLOAK_DB_PASSWORD:-keycloak-demo}
+  - &secret_oidc_synapse ${SYNAPSE_OIDC_SECRET:-synapse-oidc-demo}
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: *mdp_postgres
+      SYNAPSE_DB_PASSWORD: *mdp_bdd_synapse
+      KEYCLOAK_DB_PASSWORD: *mdp_bdd_keycloak
+    volumes:
+      - postgres:/var/lib/postgresql/data
+      - ./postgres/init-bases.sh:/docker-entrypoint-initdb.d/init-bases.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.8.1
+    restart: unless-stopped
+    command: start --import-realm
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: *mdp_bdd_keycloak
+      # URL publique (écrite dans les jetons) ; les conteneurs peuvent l'appeler en interne.
+      KC_HOSTNAME: https://auth.localhost
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+      KC_HTTP_ENABLED: "true"
+      KC_PROXY_HEADERS: xforwarded
+      KC_HEALTH_ENABLED: "true"
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin-demo}
+      SYNAPSE_OIDC_SECRET: *secret_oidc_synapse   # injecté dans le realm importé
+    volumes:
+      - ./keycloak/realm-export.json:/opt/keycloak/data/import/administration.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/9000 && printf 'GET /health/ready HTTP/1.0\\r\\n\\r\\n' >&3 && grep -q UP <&3"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  synapse:
+    image: matrixdotorg/synapse:v1.164.1
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "/config/demarrage.sh"]
+    environment:
+      SYNAPSE_DB_PASSWORD: *mdp_bdd_synapse
+      SYNAPSE_OIDC_SECRET: *secret_oidc_synapse
+      # Synapse appelle Keycloak en HTTP, uniquement sur le réseau interne Docker
+      # (jamais exposé). La bibliothèque OIDC exige sinon HTTPS pour ces adresses.
+      AUTHLIB_INSECURE_TRANSPORT: "1"
+    volumes:
+      - synapse:/data
+      - ./synapse:/config:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+
+  element:
+    image: vectorim/element-web:v1.12.33
+    restart: unless-stopped
+    environment:
+      ELEMENT_WEB_PORT: 8080
+    volumes:
+      - ./element/config.json:/app/config.json:ro
+
+  caddy:
+    image: caddy:2.11.7-alpine
+    restart: unless-stopped
+    ports:
+      # Par défaut, la messagerie n'écoute que sur la machine locale.
+      - "${ADRESSE_ECOUTE:-127.0.0.1}:80:80"
+      - "${ADRESSE_ECOUTE:-127.0.0.1}:443:443"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - element
+      - synapse
+      - keycloak
+
+volumes:
+  postgres:
+  synapse:
+  caddy-data:
+  caddy-config:

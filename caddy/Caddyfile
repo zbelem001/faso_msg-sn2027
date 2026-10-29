@@ -1,0 +1,24 @@
+# Point d'entrée unique de la messagerie (HTTPS).
+# Les certificats sont émis par l'autorité de certification interne de Caddy :
+# aucun service extérieur (pas de Let's Encrypt). Pas de journal d'accès, donc pas d'adresses IP conservées.
+{
+	local_certs
+}
+
+# Client des agents
+element.localhost {
+	reverse_proxy element:8080
+}
+
+# Serveur Matrix
+matrix.localhost {
+	# L'API d'administration de Synapse n'est jamais exposée :
+	# seule la console y accède, par le réseau interne Docker.
+	respond /_synapse/admin/* 404
+	reverse_proxy synapse:8008
+}
+
+# Identité (Keycloak)
+auth.localhost {
+	reverse_proxy keycloak:8080
+}

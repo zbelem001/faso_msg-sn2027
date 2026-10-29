@@ -1,6 +1,9 @@
 # Secrets locaux (les valeurs de démonstration sont dans docker-compose.yml)
 .env
 
+# Certificat racine de Caddy, propre à chaque installation
+*.crt
+
 # Python
 __pycache__/
 *.pyc
