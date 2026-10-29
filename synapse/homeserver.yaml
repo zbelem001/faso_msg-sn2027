@@ -38,6 +38,17 @@ enable_set_displayname: false       # le nom affiché vient de Keycloak, un agen
 enable_set_avatar_url: false        # les avatars seraient stockés en clair dans media_store
 enable_3pid_changes: false
 
+# Le mot de passe et le TOTP sont vérifiés par Keycloak (avec sa protection anti-force brute) ;
+# Synapse n'échange que des jetons de connexion à usage unique. La limite par défaut (5 connexions
+# en rafale par adresse) bloquerait une démonstration où tous les postes partagent la même adresse.
+rc_login:
+  address:
+    per_second: 1
+    burst_count: 20
+  account:
+    per_second: 1
+    burst_count: 20
+
 sso:
   client_whitelist:
     - "https://element.localhost/"  # retour direct vers Element après la connexion
