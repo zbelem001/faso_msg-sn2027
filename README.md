@@ -28,7 +28,9 @@ Prérequis : Docker et Docker Compose, environ 2 Go de mémoire libre.
 docker compose up -d
 ```
 
-Au premier démarrage, Keycloak importe l'annuaire de démonstration et Synapse génère sa clé de signature (environ une minute). La messagerie est ensuite disponible sur https://element.localhost. Les comptes fictifs et le certificat à importer dans le navigateur sont décrits dans [DEMO.md](DEMO.md).
+Au premier démarrage, Keycloak importe l'annuaire de démonstration, Synapse génère sa clé de signature et le conteneur d'initialisation crée le compte de service de la console (environ une minute et demie). La messagerie est ensuite disponible sur https://element.localhost et la console d'administration sur https://admin.localhost. Les comptes fictifs et le certificat à importer dans le navigateur sont décrits dans [DEMO.md](DEMO.md).
+
+Tests automatisés : `pip install -r console-admin/requirements-tests.txt` puis `pytest`.
 
 Les secrets de `docker-compose.yml` sont des valeurs de démonstration : en production, les remplacer dans un fichier `.env` (modèle : [.env.example](.env.example)).
 

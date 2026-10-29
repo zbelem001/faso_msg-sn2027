@@ -18,6 +18,7 @@ Tous les comptes et toutes les données sont **fictifs**.
 | Service | Adresse |
 |---|---|
 | Messagerie (Element) | https://element.localhost |
+| Console d'administration (révocation, journal d'audit) | https://admin.localhost (compte `admin.demo`) |
 | Identité (Keycloak, administration technique) | https://auth.localhost/admin (identifiant `admin`, mot de passe `admin-demo`) |
 
 ## Comptes de démonstration
@@ -51,3 +52,35 @@ Le compte `admin` (mot de passe `admin-demo`) sert uniquement à la console tech
       ORDER BY e.stream_ordering DESC LIMIT 5;"
    ```
    On ne doit voir que des événements `m.room.encrypted`, avec un champ `ciphertext` illisible.
+
+Les noms et sujets de salons ne sont pas chiffrés dans Matrix (métadonnée documentée) : utiliser des noms neutres.
+
+## Scénario : révocation pendant une conversation de groupe
+
+1. Awa, Issa et Fatou sont dans un même salon et échangent des messages.
+2. Dans un autre navigateur, ouvrir https://admin.localhost et se connecter avec `admin.demo`.
+3. Cliquer sur « Révoquer » sur la ligne de Fatou, saisir un motif, confirmer.
+4. Le rapport s'affiche : toutes les étapes doivent être cochées, en une à deux secondes.
+5. Fatou est déconnectée de la messagerie et ne peut plus se reconnecter (« Compte désactivé »). Elle n'est plus membre du salon : Awa et Issa continuent sans elle, et les nouveaux messages sont chiffrés avec une nouvelle clé de groupe qu'elle ne reçoit pas.
+6. L'onglet « Journal d'audit » garde la trace de la révocation (qui, quand, quel agent, motif).
+
+## Scénario : intrus
+
+| Tentative | Résultat attendu |
+|---|---|
+| Connexion avec `externe.demo` (compte non enrôlé comme agent) | Refusée par la messagerie |
+| Connexion d'un agent révoqué | « Compte désactivé » |
+| Mot de passe correct, code TOTP faux | Refusée par Keycloak |
+| Agent simple (`issa.demo`) sur https://admin.localhost | Refusé (403) |
+| Inscription directe sur le serveur Matrix | `curl -k -X POST https://matrix.localhost/_matrix/client/v3/register -d '{}'` : « Registration has been disabled » |
+| Message en clair envoyé directement à l'API | Refusé (403) par le garde-fou du serveur |
+| Création d'un salon public | Refusée (403) par le garde-fou |
+
+## Tests automatisés
+
+```bash
+pip install -r console-admin/requirements-tests.txt
+pytest
+```
+
+Ils couvrent la révocation (ordre des étapes, agent inconnu), la vérification des jetons de la console (signature forgée, jeton modifié, expiré, autre émetteur, autre audience, agent sans droit) et le garde-fou du serveur.
