@@ -71,6 +71,10 @@ oidc_providers:
 
 encryption_enabled_by_default_for_room_type: all   # tout salon est chiffré
 
+modules:                            # garde-fou : refuse tout événement non chiffré (modules/garde_fou.py)
+  - module: garde_fou.GardeFouChiffrement
+    config: {}
+
 # --- Fédération fermée (prototype : un seul serveur) ----------------------------
 
 federation_domain_whitelist: []

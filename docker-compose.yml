@@ -70,9 +70,11 @@ services:
       # Synapse appelle Keycloak en HTTP, uniquement sur le réseau interne Docker
       # (jamais exposé). La bibliothèque OIDC exige sinon HTTPS pour ces adresses.
       AUTHLIB_INSECURE_TRANSPORT: "1"
+      PYTHONPATH: /modules            # module garde-fou
     volumes:
       - synapse:/data
       - ./synapse:/config:ro
+      - ./synapse/modules:/modules:ro
     depends_on:
       postgres:
         condition: service_healthy
