@@ -140,6 +140,7 @@
 
 <script>
   const $ = (id) => document.getElementById(id);
+  const secondes = (ms) => `${(ms / 1000).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} s`;
   let agents = [], moi = null, cible = null;
 
   async function api(chemin, options = {}) {
@@ -196,7 +197,7 @@
       cellule(tr, new Date(l.horodatage).toLocaleString("fr-FR"));
       cellule(tr, l.administrateur); cellule(tr, l.agent); cellule(tr, l.motif, "motif");
       badge(tr.insertCell(), l.succes ? "Réussie" : "Incomplète", l.succes ? "ok" : "ko");
-      cellule(tr, `${(l.rapport.duration_ms / 1000).toFixed(1)} s`);
+      cellule(tr, secondes(l.rapport.duration_ms));
     }
     if (!lignes.length) ligneVide(corps, "Aucune révocation pour l'instant.", 6);
   }
@@ -225,7 +226,7 @@
       if (e.detail) { const d = document.createElement("small"); d.textContent = e.detail; li.append(d); }
       liste.append(li);
     }
-    $("r-meta").textContent = `Durée totale : ${(r.duration_ms / 1000).toFixed(1)} s`;
+    $("r-meta").textContent = `Durée totale : ${secondes(r.duration_ms)}`;
     $("fermer").focus();
   }
 
