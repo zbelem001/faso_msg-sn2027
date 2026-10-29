@@ -1,0 +1,14 @@
+# Secrets locaux (les valeurs de démonstration sont dans docker-compose.yml)
+.env
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+
+# Éditeurs et système
+.vscode/
+.idea/
+.DS_Store
