@@ -1,0 +1,92 @@
+# Configuration de Synapse, serveur Matrix de la messagerie.
+# Modèle : les variables d'environnement y sont injectées au démarrage par demarrage.sh.
+
+server_name: "messagerie.gov.bf"
+public_baseurl: "https://matrix.localhost/"
+pid_file: /data/homeserver.pid
+media_store_path: /data/media_store
+signing_key_path: /data/signing.key
+registration_shared_secret_path: /data/registration_shared_secret  # généré au premier démarrage
+report_stats: false
+
+listeners:
+  - port: 8008
+    type: http
+    tls: false
+    x_forwarded: true
+    bind_addresses: ["0.0.0.0"]
+    resources:
+      - names: [client]   # pas de ressource "federation" : aucun serveur extérieur
+        compress: false
+
+database:
+  name: psycopg2
+  args:
+    user: synapse
+    password: "${SYNAPSE_DB_PASSWORD}"
+    database: synapse
+    host: postgres
+    cp_min: 5
+    cp_max: 10
+
+# --- Identité : uniquement les agents enrôlés dans Keycloak ---------------------
+
+enable_registration: false          # aucune inscription libre
+password_config:
+  enabled: false                    # connexion uniquement via Keycloak (SSO)
+enable_set_displayname: false       # le nom affiché vient de Keycloak, un agent ne peut pas l'usurper
+enable_set_avatar_url: false        # les avatars seraient stockés en clair dans media_store
+enable_3pid_changes: false
+
+sso:
+  client_whitelist:
+    - "https://element.localhost/"  # retour direct vers Element après la connexion
+  update_profile_information: true  # nom affiché resynchronisé avec Keycloak à chaque connexion
+
+oidc_providers:
+  - idp_id: keycloak
+    idp_name: "Compte agent de l'État"
+    # Pas de découverte automatique : le navigateur passe par l'URL publique de Keycloak,
+    # Synapse l'appelle directement sur le réseau interne Docker.
+    discover: false
+    issuer: "https://auth.localhost/realms/administration"
+    authorization_endpoint: "https://auth.localhost/realms/administration/protocol/openid-connect/auth"
+    token_endpoint: "http://keycloak:8080/realms/administration/protocol/openid-connect/token"
+    userinfo_endpoint: "http://keycloak:8080/realms/administration/protocol/openid-connect/userinfo"
+    jwks_uri: "http://keycloak:8080/realms/administration/protocol/openid-connect/certs"
+    client_id: synapse
+    client_secret: "${SYNAPSE_OIDC_SECRET}"
+    client_auth_method: client_secret_post
+    scopes: ["openid", "profile"]
+    user_mapping_provider:
+      config:
+        localpart_template: "{{ user.preferred_username }}"
+        display_name_template: "{{ user.name }}"
+    attribute_requirements:         # seuls les membres du groupe "agents" entrent
+      - attribute: groups
+        value: agents
+    backchannel_logout_enabled: true
+
+# --- Chiffrement ----------------------------------------------------------------
+
+encryption_enabled_by_default_for_room_type: all   # tout salon est chiffré
+
+# --- Fédération fermée (prototype : un seul serveur) ----------------------------
+
+federation_domain_whitelist: []
+trusted_key_servers: []             # ne contacte pas matrix.org
+allow_public_rooms_over_federation: false
+allow_public_rooms_without_auth: false
+
+# --- Minimisation des métadonnées -----------------------------------------------
+
+presence:
+  enabled: false                    # pas d'information « en ligne »
+url_preview_enabled: false          # le serveur ne visite pas les liens partagés
+user_ips_max_age: 1d                # rétention courte des adresses IP
+push:
+  include_content: false            # notifications sans contenu
+require_auth_for_profile_requests: true
+user_directory:
+  enabled: true
+  search_all_users: true            # les agents se trouvent entre eux (annuaire fermé)
