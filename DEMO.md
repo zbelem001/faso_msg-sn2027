@@ -24,15 +24,17 @@ Tous les comptes et toutes les données sont **fictifs**.
 
 Mot de passe commun : **`Agent-Demo-2026`**
 
-Le second facteur est obligatoire. Ajouter le secret TOTP du compte dans une application d'authentification (Aegis, FreeOTP, ou toute application compatible RFC 6238), en saisie manuelle : type « basé sur le temps », 6 chiffres, 30 secondes, SHA-1.
+Le second facteur est obligatoire. Le plus simple : **scanner le QR code du compte** avec une application d'authentification (Aegis, FreeOTP, ou toute application compatible RFC 6238). En saisie manuelle : type « basé sur le temps », 6 chiffres, 30 secondes, SHA-1, et le secret ci-dessous. L'heure du téléphone doit être exacte (réglage automatique).
 
-| Identifiant | Nom | Ministère, fonction | Groupes | Secret TOTP (fictif) |
-|---|---|---|---|---|
-| `awa.demo` | Awa Sawadogo | Santé, directrice des ressources humaines | `agents` | `KVTG6MKMKZWEM3ZQONBUORRYIY2TO43L` |
-| `issa.demo` | Issa Traoré | Économie et Finances, chef du service du budget | `agents` | `KEZWI42IG5WXKZ22PIYGOULZJRWUYZDD` |
-| `fatou.demo` | Fatou Ouédraogo | Éducation nationale, chargée d'études | `agents` | `JR4DK4KZOV2XORSBLFNGKWSWJ5UW4VSK` |
-| `admin.demo` | Salif Zongo | Transition digitale, administrateur de la messagerie | `agents`, `admin-messagerie` | `KV3GYMLQMZQUENLKHAYTIURVNE4HITRZ` |
-| `externe.demo` | Visiteur Externe | Aucun | aucun | `IJXXQULYHFGGG5CTIVUHCZZZOZZVSQLP` |
+| Identifiant | Nom | Ministère, fonction | Groupes | Secret TOTP (fictif) | QR code |
+|---|---|---|---|---|---|
+| `awa.demo` | Awa Sawadogo | Santé, directrice des ressources humaines | `agents` | `KVTG6MKMKZWEM3ZQONBUORRYIY2TO43L` | [awa.demo.png](docs/totp-demo/awa.demo.png) |
+| `issa.demo` | Issa Traoré | Économie et Finances, chef du service du budget | `agents` | `KEZWI42IG5WXKZ22PIYGOULZJRWUYZDD` | [issa.demo.png](docs/totp-demo/issa.demo.png) |
+| `fatou.demo` | Fatou Ouédraogo | Éducation nationale, chargée d'études | `agents` | `JR4DK4KZOV2XORSBLFNGKWSWJ5UW4VSK` | [fatou.demo.png](docs/totp-demo/fatou.demo.png) |
+| `admin.demo` | Salif Zongo | Transition digitale, administrateur de la messagerie | `agents`, `admin-messagerie` | `KV3GYMLQMZQUENLKHAYTIURVNE4HITRZ` | [admin.demo.png](docs/totp-demo/admin.demo.png) |
+| `externe.demo` | Visiteur Externe | Aucun | aucun | `IJXXQULYHFGGG5CTIVUHCZZZOZZVSQLP` | [externe.demo.png](docs/totp-demo/externe.demo.png) |
+
+Le compte `admin` (mot de passe `admin-demo`) sert uniquement à la console technique de Keycloak : il ne permet pas de se connecter à la messagerie.
 
 `externe.demo` existe dans l'annuaire mais n'est pas enrôlé comme agent : la messagerie le refuse (épreuve « Intrus »).
 
