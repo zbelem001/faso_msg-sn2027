@@ -22,3 +22,8 @@ matrix.localhost {
 auth.localhost {
 	reverse_proxy keycloak:8080
 }
+
+# Console d'administration, toujours derrière oauth2-proxy
+admin.localhost {
+	reverse_proxy oauth2-proxy:4180
+}

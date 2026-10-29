@@ -13,6 +13,9 @@ x-secrets:
   - &mdp_bdd_synapse ${SYNAPSE_DB_PASSWORD:-synapse-demo}
   - &mdp_bdd_keycloak ${KEYCLOAK_DB_PASSWORD:-keycloak-demo}
   - &secret_oidc_synapse ${SYNAPSE_OIDC_SECRET:-synapse-oidc-demo}
+  - &secret_oidc_oauth2_proxy ${OAUTH2_PROXY_CLIENT_SECRET:-oauth2-proxy-demo}
+  - &secret_console_admin ${CONSOLE_ADMIN_CLIENT_SECRET:-console-admin-demo}
+  - &secret_cookie_console ${OAUTH2_PROXY_COOKIE_SECRET:-demo-cookie-secret-32-octets-ok!}
 
 services:
   postgres:
@@ -48,7 +51,10 @@ services:
       KC_HEALTH_ENABLED: "true"
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin-demo}
-      SYNAPSE_OIDC_SECRET: *secret_oidc_synapse   # injecté dans le realm importé
+      # Secrets des clients, injectés dans le realm importé
+      SYNAPSE_OIDC_SECRET: *secret_oidc_synapse
+      OAUTH2_PROXY_CLIENT_SECRET: *secret_oidc_oauth2_proxy
+      CONSOLE_ADMIN_CLIENT_SECRET: *secret_console_admin
     volumes:
       - ./keycloak/realm-export.json:/opt/keycloak/data/import/administration.json:ro
     depends_on:
@@ -81,6 +87,82 @@ services:
       keycloak:
         condition: service_healthy
 
+  # Une seule fois au démarrage : crée le compte de service de la console dans Synapse
+  # et dépose son jeton. Seul ce conteneur lit le secret d'enregistrement de Synapse.
+  init:
+    build: ./console-admin
+    command: ["python", "/init/initialiser.py"]
+    restart: "no"
+    volumes:
+      - ./init:/init:ro
+      - synapse:/synapse-data:ro
+      - console-jeton:/run/console
+    depends_on:
+      synapse:
+        condition: service_healthy
+
+  # Console d'administration : jamais exposée directement, uniquement derrière oauth2-proxy
+  console:
+    build: ./console-admin
+    restart: unless-stopped
+    environment:
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_REALM: administration
+      KEYCLOAK_ISSUER: https://auth.localhost/realms/administration
+      KEYCLOAK_CLIENT_ID: console-admin
+      KEYCLOAK_CLIENT_SECRET: *secret_console_admin
+      OIDC_AUDIENCE: oauth2-proxy
+      ADMIN_GROUP: admin-messagerie
+      SYNAPSE_URL: http://synapse:8008
+      SYNAPSE_SERVER_NAME: messagerie.gov.bf
+      SYNAPSE_ADMIN_TOKEN_FILE: /run/console/synapse_admin_token
+      AUDIT_DB: /data/audit.db
+    volumes:
+      - console-jeton:/run/console:ro
+      - console-audit:/data
+    depends_on:
+      init:
+        condition: service_completed_successfully
+      keycloak:
+        condition: service_healthy
+
+  # Garde-barrière de la console : connexion Keycloak (avec second facteur) et groupe
+  # admin-messagerie exigés ; transmet le jeton d'accès à la console, qui en vérifie la signature.
+  oauth2-proxy:
+    image: quay.io/oauth2-proxy/oauth2-proxy:v7.15.5
+    restart: unless-stopped
+    environment:
+      OAUTH2_PROXY_PROVIDER: keycloak-oidc
+      OAUTH2_PROXY_CLIENT_ID: oauth2-proxy
+      OAUTH2_PROXY_CLIENT_SECRET: *secret_oidc_oauth2_proxy
+      OAUTH2_PROXY_OIDC_ISSUER_URL: https://auth.localhost/realms/administration
+      # Comme pour Synapse : le navigateur passe par l'URL publique, oauth2-proxy par le réseau interne.
+      OAUTH2_PROXY_SKIP_OIDC_DISCOVERY: "true"
+      OAUTH2_PROXY_LOGIN_URL: https://auth.localhost/realms/administration/protocol/openid-connect/auth
+      OAUTH2_PROXY_REDEEM_URL: http://keycloak:8080/realms/administration/protocol/openid-connect/token
+      OAUTH2_PROXY_OIDC_JWKS_URL: http://keycloak:8080/realms/administration/protocol/openid-connect/certs
+      OAUTH2_PROXY_REDIRECT_URL: https://admin.localhost/oauth2/callback
+      OAUTH2_PROXY_CODE_CHALLENGE_METHOD: S256
+      OAUTH2_PROXY_SCOPE: openid email profile   # les groupes viennent du mappeur du client Keycloak
+      OAUTH2_PROXY_ALLOWED_GROUPS: admin-messagerie
+      OAUTH2_PROXY_EMAIL_DOMAINS: "*"
+      OAUTH2_PROXY_UPSTREAMS: http://console:8000
+      OAUTH2_PROXY_PASS_ACCESS_TOKEN: "true"
+      OAUTH2_PROXY_HTTP_ADDRESS: 0.0.0.0:4180
+      OAUTH2_PROXY_REVERSE_PROXY: "true"
+      OAUTH2_PROXY_TRUSTED_PROXY_IPS: 10.0.0.0/8,172.16.0.0/12,192.168.0.0/16   # Caddy, sur le réseau Docker
+      OAUTH2_PROXY_SKIP_PROVIDER_BUTTON: "true"
+      OAUTH2_PROXY_COOKIE_NAME: _console
+      OAUTH2_PROXY_COOKIE_SECRET: *secret_cookie_console
+      OAUTH2_PROXY_COOKIE_SECURE: "true"
+      OAUTH2_PROXY_COOKIE_EXPIRE: 8h
+      OAUTH2_PROXY_COOKIE_REFRESH: 1m   # jeton renouvelé : un administrateur révoqué perd l'accès
+    depends_on:
+      keycloak:
+        condition: service_healthy
+      console:
+        condition: service_started
+
   element:
     image: vectorim/element-web:v1.12.33
     restart: unless-stopped
@@ -104,9 +186,12 @@ services:
       - element
       - synapse
       - keycloak
+      - oauth2-proxy
 
 volumes:
   postgres:
   synapse:
+  console-jeton:
+  console-audit:
   caddy-data:
   caddy-config:
