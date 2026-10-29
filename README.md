@@ -22,7 +22,15 @@ Messagerie instantanée chiffrée de bout en bout pour les agents publics du Bur
 
 ## Installation
 
-*À compléter.*
+Prérequis : Docker et Docker Compose, environ 2 Go de mémoire libre.
+
+```bash
+docker compose up -d
+```
+
+Au premier démarrage, Keycloak importe l'annuaire de démonstration et Synapse génère sa clé de signature (environ une minute). La messagerie est ensuite disponible sur https://element.localhost. Les comptes fictifs et le certificat à importer dans le navigateur sont décrits dans [DEMO.md](DEMO.md).
+
+Les secrets de `docker-compose.yml` sont des valeurs de démonstration : en production, les remplacer dans un fichier `.env` (modèle : [.env.example](.env.example)).
 
 ## Limites connues
 
