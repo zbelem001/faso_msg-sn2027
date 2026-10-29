@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Console d'administration · Messagerie de l'Administration</title>
+<style>
+  :root {
+    --vert: #009e49; --vert-fonce: #00703a; --rouge: #ef2b2d; --rouge-fonce: #b91c1e; --jaune: #fcd116;
+    --encre: #18212d; --gris: #5a6573; --bord: #dde2e8; --fond: #f4f6f8; --carte: #ffffff;
+    --ombre: 0 1px 2px rgba(16, 24, 40, .06), 0 1px 3px rgba(16, 24, 40, .08);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--fond); color: var(--encre);
+         font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif; }
+  .drapeau { display: flex; height: 6px; }
+  .drapeau span { flex: 1; } .drapeau span:first-child { background: var(--rouge); } .drapeau span:last-child { background: var(--vert); }
+  .entete { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap;
+            padding: 20px 32px; background: var(--carte); border-bottom: 1px solid var(--bord); }
+  .surtitre { margin: 0; font-size: 13px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--vert-fonce); }
+  h1 { margin: 2px 0 0; font-size: 22px; }
+  .session { display: flex; align-items: center; gap: 16px; color: var(--gris); }
+  .session a { color: var(--encre); font-weight: 600; }
+  main { max-width: 1120px; margin: 0 auto; padding: 24px 32px 48px; }
+  .onglets { display: flex; gap: 4px; border-bottom: 1px solid var(--bord); margin-bottom: 20px; }
+  .onglets button { background: none; border: 0; border-bottom: 3px solid transparent; padding: 10px 14px;
+                    font: inherit; font-weight: 600; color: var(--gris); cursor: pointer; }
+  .onglets button[aria-selected="true"] { color: var(--encre); border-bottom-color: var(--vert); }
+  .barre { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 14px; }
+  input[type="search"] { flex: 1; max-width: 460px; padding: 10px 12px; font: inherit; border: 1px solid var(--bord);
+                         border-radius: 8px; background: var(--carte); }
+  #compteurs { margin: 0; color: var(--gris); }
+  .carte { background: var(--carte); border: 1px solid var(--bord); border-radius: 12px; box-shadow: var(--ombre); overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--gris);
+       padding: 12px 16px; border-bottom: 1px solid var(--bord); background: #fafbfc; }
+  td { padding: 14px 16px; border-bottom: 1px solid var(--bord); vertical-align: middle; }
+  tr:last-child td { border-bottom: 0; }
+  td strong { display: block; }
+  .identifiant { color: var(--gris); font-size: 13px; }
+  td.action { text-align: right; white-space: nowrap; }
+  td.vide { text-align: center; color: var(--gris); padding: 32px; }
+  td.motif { max-width: 320px; }
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 13px; font-weight: 600; }
+  .badge.ok { background: #e3f6ec; color: var(--vert-fonce); }
+  .badge.off { background: #eceff3; color: var(--gris); }
+  .badge.ko { background: #fde8e8; color: var(--rouge-fonce); }
+  button { font: inherit; font-weight: 600; border-radius: 8px; padding: 10px 16px; border: 1px solid transparent; cursor: pointer; }
+  button.petit { padding: 6px 12px; font-size: 14px; }
+  button.danger { background: var(--rouge); color: #fff; }
+  button.danger:hover { background: var(--rouge-fonce); }
+  button.secondaire { background: var(--carte); border-color: var(--bord); color: var(--encre); }
+  button:disabled { opacity: .6; cursor: progress; }
+  button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visible { outline: 3px solid var(--jaune); outline-offset: 2px; }
+  #erreur { background: #fde8e8; color: var(--rouge-fonce); padding: 12px 16px; border-radius: 8px; }
+  dialog { width: min(540px, calc(100vw - 32px)); border: 0; border-radius: 14px; padding: 28px;
+           box-shadow: 0 20px 50px rgba(16, 24, 40, .25); }
+  dialog::backdrop { background: rgba(16, 24, 40, .45); }
+  dialog h2 { margin: 0 0 4px; font-size: 20px; }
+  .d-id { margin: 0 0 16px; color: var(--gris); }
+  .effets { margin: 0 0 18px; padding: 14px 16px 14px 34px; background: #fff7e0; border-radius: 10px; }
+  .effets li + li { margin-top: 4px; }
+  label { display: block; font-weight: 600; margin-bottom: 6px; }
+  textarea { width: 100%; padding: 10px 12px; font: inherit; border: 1px solid var(--bord); border-radius: 8px; resize: vertical; }
+  .actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+  h2.succes { color: var(--vert-fonce); } h2.echec { color: var(--rouge-fonce); }
+  .etapes { list-style: none; margin: 16px 0 0; padding: 0; }
+  .etapes li { display: grid; grid-template-columns: 28px 1fr; padding: 8px 0; border-bottom: 1px solid var(--bord); }
+  .etapes small { grid-column: 2; color: var(--gris); }
+  .icone { font-weight: 700; } .ok .icone { color: var(--vert); } .ko .icone { color: var(--rouge); }
+  .r-meta { margin: 14px 0 0; color: var(--gris); }
+  @media (max-width: 640px) { .entete, main { padding-left: 16px; padding-right: 16px; } }
+</style>
+</head>
+<body>
+<div class="drapeau" aria-hidden="true"><span></span><span></span></div>
+<header class="entete">
+  <div>
+    <p class="surtitre">Messagerie de l'Administration</p>
+    <h1>Console d'administration</h1>
+  </div>
+  <div class="session"><span id="admin"></span><a href="/oauth2/sign_out">Se déconnecter</a></div>
+</header>
+
+<main>
+  <p id="erreur" role="alert" hidden></p>
+  <nav class="onglets" role="tablist">
+    <button role="tab" aria-selected="true" data-onglet="agents">Agents</button>
+    <button role="tab" aria-selected="false" data-onglet="audit">Journal d'audit</button>
+  </nav>
+
+  <section id="agents">
+    <div class="barre">
+      <input type="search" id="recherche" placeholder="Rechercher un agent, un ministère, une fonction…" aria-label="Rechercher un agent">
+      <p id="compteurs"></p>
+    </div>
+    <div class="carte">
+      <table>
+        <thead><tr><th>Agent</th><th>Ministère</th><th>Fonction</th><th>Statut</th><th></th></tr></thead>
+        <tbody id="liste-agents"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="audit" hidden>
+    <div class="carte">
+      <table>
+        <thead><tr><th>Date</th><th>Administrateur</th><th>Agent</th><th>Motif</th><th>Résultat</th><th>Durée</th></tr></thead>
+        <tbody id="liste-audit"></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<dialog id="dialogue" aria-labelledby="d-titre">
+  <form id="formulaire">
+    <h2 id="d-titre">Révoquer <span id="d-nom"></span></h2>
+    <p class="d-id" id="d-identifiant"></p>
+    <ul class="effets">
+      <li>Son compte d'identité est désactivé : plus aucune connexion possible.</li>
+      <li>Ses sessions sont fermées, sur tous ses appareils.</li>
+      <li>Il ou elle est retiré(e) de tous les salons et ne pourra plus lire les nouveaux messages.</li>
+      <li>L'historique reste disponible pour les autres membres.</li>
+    </ul>
+    <label for="motif">Motif de la révocation</label>
+    <textarea id="motif" required minlength="3" maxlength="200" rows="2"
+              placeholder="Ex. : perte du téléphone, départ du service"></textarea>
+    <div class="actions">
+      <button type="button" class="secondaire" id="annuler">Annuler</button>
+      <button type="submit" class="danger" id="confirmer">Révoquer l'agent</button>
+    </div>
+  </form>
+  <div id="resultat" hidden>
+    <h2 id="r-titre"></h2>
+    <ol class="etapes" id="r-etapes"></ol>
+    <p class="r-meta" id="r-meta"></p>
+    <div class="actions"><button type="button" class="secondaire" id="fermer">Fermer</button></div>
+  </div>
+</dialog>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  let agents = [], moi = null, cible = null;
+
+  async function api(chemin, options = {}) {
+    const rep = await fetch(chemin, { headers: { "Content-Type": "application/json" }, ...options });
+    if (rep.status === 401) { location.reload(); throw new Error("Session expirée"); }
+    const corps = await rep.json().catch(() => ({}));
+    if (!rep.ok) throw new Error(typeof corps.detail === "string" ? corps.detail : `Erreur ${rep.status}`);
+    return corps;
+  }
+
+  function erreur(message) { $("erreur").textContent = message; $("erreur").hidden = !message; }
+
+  // Tout texte venant du serveur passe par textContent : aucun HTML n'est interprété.
+  function cellule(tr, texte, classe) {
+    const td = tr.insertCell(); td.textContent = texte ?? ""; if (classe) td.className = classe; return td;
+  }
+  function badge(td, texte, type) {
+    const s = document.createElement("span"); s.className = `badge ${type}`; s.textContent = texte; td.append(s);
+  }
+  function ligneVide(corps, texte, colonnes) { cellule(corps.insertRow(), texte, "vide").colSpan = colonnes; }
+
+  function afficherAgents() {
+    const filtre = $("recherche").value.trim().toLowerCase();
+    const corps = $("liste-agents"); corps.replaceChildren();
+    const visibles = agents.filter((a) =>
+      [a.nom, a.identifiant, a.ministere, a.fonction].join(" ").toLowerCase().includes(filtre));
+    for (const a of visibles) {
+      const tr = corps.insertRow();
+      const nom = document.createElement("strong"); nom.textContent = a.nom || a.identifiant;
+      const id = document.createElement("span"); id.className = "identifiant"; id.textContent = a.identifiant;
+      tr.insertCell().append(nom, id);
+      cellule(tr, a.ministere); cellule(tr, a.fonction);
+      badge(tr.insertCell(), a.actif ? "Actif" : "Révoqué", a.actif ? "ok" : "off");
+      const action = cellule(tr, "", "action");
+      if (a.actif && a.identifiant !== moi?.identifiant) {
+        const b = document.createElement("button");
+        b.className = "danger petit"; b.textContent = "Révoquer";
+        b.addEventListener("click", () => ouvrir(a));
+        action.append(b);
+      }
+    }
+    if (!visibles.length) ligneVide(corps, "Aucun agent ne correspond à la recherche.", 5);
+    const actifs = agents.filter((a) => a.actif).length;
+    $("compteurs").textContent = `${actifs} actif(s) · ${agents.length - actifs} révoqué(s)`;
+  }
+
+  async function chargerAgents() { agents = await api("/api/agents"); afficherAgents(); }
+
+  async function chargerAudit() {
+    const lignes = await api("/api/audit");
+    const corps = $("liste-audit"); corps.replaceChildren();
+    for (const l of lignes) {
+      const tr = corps.insertRow();
+      cellule(tr, new Date(l.horodatage).toLocaleString("fr-FR"));
+      cellule(tr, l.administrateur); cellule(tr, l.agent); cellule(tr, l.motif, "motif");
+      badge(tr.insertCell(), l.succes ? "Réussie" : "Incomplète", l.succes ? "ok" : "ko");
+      cellule(tr, `${(l.rapport.duration_ms / 1000).toFixed(1)} s`);
+    }
+    if (!lignes.length) ligneVide(corps, "Aucune révocation pour l'instant.", 6);
+  }
+
+  function ouvrir(agent) {
+    cible = agent;
+    $("d-nom").textContent = agent.nom || agent.identifiant;
+    $("d-identifiant").textContent = [agent.identifiant, agent.ministere].filter(Boolean).join(" · ");
+    $("motif").value = "";
+    $("formulaire").hidden = false; $("resultat").hidden = true;
+    $("confirmer").disabled = false; $("confirmer").textContent = "Révoquer l'agent";
+    $("dialogue").showModal(); $("motif").focus();
+  }
+
+  function afficherRapport(r) {
+    $("formulaire").hidden = true; $("resultat").hidden = false;
+    $("r-titre").textContent = r.success ? `${cible.nom || cible.identifiant} : accès révoqué` : "Révocation incomplète";
+    $("r-titre").className = r.success ? "succes" : "echec";
+    const liste = $("r-etapes"); liste.replaceChildren();
+    for (const e of r.steps) {
+      const li = document.createElement("li"); li.className = e.ok ? "ok" : "ko";
+      const icone = document.createElement("span"); icone.className = "icone";
+      icone.textContent = e.ok ? "✓" : "✗"; icone.setAttribute("aria-label", e.ok ? "réussi" : "échec");
+      const texte = document.createElement("span"); texte.textContent = e.name;
+      li.append(icone, texte);
+      if (e.detail) { const d = document.createElement("small"); d.textContent = e.detail; li.append(d); }
+      liste.append(li);
+    }
+    $("r-meta").textContent = `Durée totale : ${(r.duration_ms / 1000).toFixed(1)} s`;
+    $("fermer").focus();
+  }
+
+  $("formulaire").addEventListener("submit", async (evenement) => {
+    evenement.preventDefault();
+    $("confirmer").disabled = true; $("confirmer").textContent = "Révocation en cours…";
+    try {
+      afficherRapport(await api(`/api/agents/${encodeURIComponent(cible.identifiant)}/revoke`,
+                                { method: "POST", body: JSON.stringify({ motif: $("motif").value }) }));
+    } catch (err) {
+      afficherRapport({ success: false, duration_ms: 0, steps: [{ name: "Révocation", ok: false, detail: err.message }] });
+    }
+  });
+  $("annuler").addEventListener("click", () => $("dialogue").close());
+  $("fermer").addEventListener("click", () => $("dialogue").close());
+  $("dialogue").addEventListener("close", () => {
+    if (!$("resultat").hidden) chargerAgents().catch((err) => erreur(err.message));
+  });
+  $("recherche").addEventListener("input", afficherAgents);
+
+  for (const onglet of document.querySelectorAll("[data-onglet]")) {
+    onglet.addEventListener("click", () => {
+      for (const o of document.querySelectorAll("[data-onglet]")) {
+        o.setAttribute("aria-selected", o === onglet);
+        $(o.dataset.onglet).hidden = o !== onglet;
+      }
+      if (onglet.dataset.onglet === "audit") chargerAudit().catch((err) => erreur(err.message));
+    });
+  }
+
+  (async () => {
+    try {
+      moi = await api("/api/moi");
+      $("admin").textContent = moi.nom || moi.identifiant;
+      await chargerAgents();
+    } catch (err) { erreur(err.message); }
+  })();
+</script>
+</body>
+</html>
